@@ -13,10 +13,10 @@ Checks if there are any commits since your last deployment tag.
 
 #### `tag-rollup` Inputs
 
-| Name | Required | Default | Description |
+| Name | Optional | Default | Description |
 |------|-----------|----------|-------------|
-| `tag` | ❌ | last-deploy | Tag name to check, e.g. `last-deploy` |
-| `initial_as_changes` | ❌ | `true` | Treat the first run (when no tag exists) as “changes present” |
+| `tag` | ✅ | last-deploy | Tag name to check, e.g. `last-deploy` |
+| `initial_as_changes` | ✅ | `true` | Treat the first run (when no tag exists) as “changes present” |
 
 #### Outputs
 
@@ -34,10 +34,10 @@ Moves a tag to `HEAD` and pushes it back to your remote — great for marking a 
 
 #### `tag-push` Inputs
 
-| Name | Required | Default | Description |
+| Name | Optional  | Default | Description |
 |------|-----------|----------|-------------|
-| `tag` | ❌ | last-deploy | Tag name to move and push |
-| `remote` | ❌ | `origin` | Remote name to push to |
+| `tag` | ✅ | last-deploy | Tag name to move and push |
+| `remote` | ✅ | `origin` | Remote name to push to |
 
 ---
 
@@ -136,6 +136,7 @@ jobs:
 .github/workflows/deploy.yml (reusable)
 
 ```yaml
+name: Deploy
 on:
   workflow_call: {}
 
