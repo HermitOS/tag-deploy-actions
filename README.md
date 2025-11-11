@@ -125,7 +125,7 @@ jobs:
       - uses: actions/checkout@v4
         with: { fetch-depth: 0 }
       - id: rollup
-        uses: hermitos/actions/tag-rollup@v1
+        uses: hermitos/deploy-actions/tag-rollup@v1
 
   call-deploy:
     needs: check
@@ -150,6 +150,6 @@ jobs:
         run: |
           # your full deploy here, can be multiple steps to
       - name: Update last-deploy tag
-        uses: hermitos/actions/tag-push@v1
+        uses: hermitos/deploy-actions/tag-push@v1
 
 ```
