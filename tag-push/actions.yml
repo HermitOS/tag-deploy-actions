@@ -1,0 +1,26 @@
+name: Tag push
+description: Move a tag to HEAD and push it to the remote after a successful deploy
+author: Terje Sandstrom
+branding:
+  icon: tag
+  color: green
+
+inputs:
+  tag:
+    description: Tag name to move and push (e.g., last-deploy)
+    required: true
+    default: last-deploy
+  remote:
+    description: Git remote name
+    default: origin
+
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      run: |
+        tag="${{ inputs.tag }}"
+        remote="${{ inputs.remote }}"
+        git fetch --tags --force
+        git tag -f "$tag"
+        git push -f "$remote" "refs/tags/$tag"

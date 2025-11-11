@@ -1,0 +1,51 @@
+name: Tag rollup check
+description: Check commits since a moving tag (run nightly or before deployment)
+author: Terje Sandstrom
+branding:
+  icon: git-commit
+  color: blue
+
+inputs:
+  tag:
+    description: Tag name to compare (e.g., last-deploy or last-deploy/prod)
+    required: true
+    default: last-deploy
+  initial_as_changes:
+    description: If no tag exists, treat as changes (true) or no changes (false)
+    default: "true"
+
+outputs:
+  has_changes:
+    description: true if HEAD is ahead of the tag (or initial_as_changes == true and tag missing)
+  base_tag:
+    description: The tag name if present, else empty
+  ahead:
+    description: Number of commits ahead of tag
+
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      run: git fetch --tags --force
+
+    - id: check
+      shell: bash
+      run: |
+        tag="${{ inputs.tag }}"
+        if git rev-parse -q --verify "refs/tags/$tag" >/dev/null; then
+          ahead=$(git rev-list --count "$tag"..HEAD)
+          base="$tag"
+        else
+          if [ "${{ inputs.initial_as_changes }}" = "true" ]; then
+            ahead=$(git rev-list --count HEAD)
+          else
+            ahead=0
+          fi
+          base=""
+        fi
+        has_changes=$([ "$ahead" -gt 0 ] && echo true || echo false)
+        {
+          echo "has_changes=$has_changes"
+          echo "base_tag=$base"
+          echo "ahead=$ahead"
+        } >> "$GITHUB_OUTPUT"
