@@ -38,10 +38,6 @@ Moves a tag to `HEAD` and pushes it back to your remote — great for marking a 
 |------|-----------|----------|-------------|
 | `tag` | ❌ | last-deploy | Tag name to move and push |
 | `remote` | ❌ | `origin` | Remote name to push to |
-| Name | Required | Default | Description |
-|------|-----------|----------|-------------|
-| `tag` | ❌ | last-deploy | Tag name to move and push |
-| `remote` | ❌ | `origin` | Remote name to push to |
 
 ---
 
