@@ -49,3 +49,6 @@ runs:
           echo "base_tag=$base"
           echo "ahead=$ahead"
         } >> "$GITHUB_OUTPUT"
+        echo "has_changes=$has_changes"
+        echo "base_tag=$base"
+        echo "ahead=$ahead"
