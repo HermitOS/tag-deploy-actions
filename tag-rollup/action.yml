@@ -17,10 +17,13 @@ inputs:
 outputs:
   has_changes:
     description: true if HEAD is ahead of the tag (or initial_as_changes == true and tag missing)
+    value: ${{ steps.vars.outputs.has_changes }}
   base_tag:
     description: The tag name if present, else empty
+    value: ${{ steps.vars.outputs.base_tag }}
   ahead:
     description: Number of commits ahead of tag
+    value: ${{ steps.vars.outputs.ahead }}
 
 runs:
   using: composite
@@ -77,6 +80,6 @@ runs:
           echo ""
           echo "$reason"
         } >> "$GITHUB_STEP_SUMMARY"
-        
+
         # Also echo to logs for quick visibility
         echo "has_changes=$has_changes, base_tag=${base:-none}, ahead=$ahead — $reason"
