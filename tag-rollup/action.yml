@@ -31,24 +31,52 @@ runs:
     - id: check
       shell: bash
       run: |
+        set -euo pipefail
         tag="${{ inputs.tag }}"
+        initial="${{ inputs.initial_as_changes }}"
+
+        echo "📦 Fetching tags…"
+        git fetch --tags --force >/dev/null 2>&1 || true
+
+        base=""
+        ahead=0
+
         if git rev-parse -q --verify "refs/tags/$tag" >/dev/null; then
           ahead=$(git rev-list --count "$tag"..HEAD)
           base="$tag"
+          reason="$ahead commit(s) since '$tag'."
         else
-          if [ "${{ inputs.initial_as_changes }}" = "true" ]; then
-            ahead=$(git rev-list --count HEAD)
+          if [ "$initial" = "true" ]; then
+            ahead="$(git rev-list --count HEAD)"
+            reason="No tag '$tag' found; treating as initial run."
           else
-            ahead=0
+            ahead="0"
+            reason="No tag '$tag' found; initial_as_changes=false, so no run."
           fi
-          base=""
         fi
-        has_changes=$([ "$ahead" -gt 0 ] && echo true || echo false)
+
+        if [ "$ahead" -gt 0 ]; then
+          has_changes="true"
+        else
+          has_changes="false"
+        fi
+
         {
           echo "has_changes=$has_changes"
           echo "base_tag=$base"
           echo "ahead=$ahead"
         } >> "$GITHUB_OUTPUT"
-        echo "has_changes=$has_changes"
-        echo "base_tag=$base"
-        echo "ahead=$ahead"
+        
+        # Summary
+        {
+          echo "### Tag rollup check"
+          echo "- Tag: \`$tag\`"
+          echo "- Found tag: \`${base:-〈none〉}\`"
+          echo "- Commits ahead: \`$ahead\`"
+          echo "- Decision: \`${has_changes}\`"
+          echo ""
+          echo "$reason"
+        } >> "$GITHUB_STEP_SUMMARY"
+        
+        # Also echo to logs for quick visibility
+        echo "has_changes=$has_changes, base_tag=${base:-none}, ahead=$ahead — $reason"

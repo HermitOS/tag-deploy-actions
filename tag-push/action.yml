@@ -19,8 +19,16 @@ runs:
   steps:
     - shell: bash
       run: |
+        set -euo pipefail
         tag="${{ inputs.tag }}"
         remote="${{ inputs.remote }}"
-        git fetch --tags --force
+        echo "🏷️ Moving '$tag' to HEAD and pushing to '$remote'…"
+        git fetch --tags --force >/dev/null 2>&1 || true
         git tag -f "$tag"
         git push -f "$remote" "refs/tags/$tag"
+        {
+          echo "### Tag push"
+          echo "- Tag moved: \`$tag\`"
+          echo "- Remote: \`$remote\`"
+          echo "- Ref: \`$(git rev-parse --short HEAD)\`"
+        } >> "$GITHUB_STEP_SUMMARY"
