@@ -15,7 +15,7 @@ Checks if there are any commits since your last deployment tag.
 
 | Name | Required | Default | Description |
 |------|-----------|----------|-------------|
-| `tag` | ✅ | — | Tag name to check, e.g. `last-deploy` |
+| `tag` | ✅ | last-deploy | Tag name to check, e.g. `last-deploy` |
 | `initial_as_changes` | ❌ | `true` | Treat the first run (when no tag exists) as “changes present” |
 
 #### Outputs
@@ -36,11 +36,11 @@ Moves a tag to `HEAD` and pushes it back to your remote — great for marking a 
 
 | Name | Required | Default | Description |
 |------|-----------|----------|-------------|
-| `tag` | ✅ | — | Tag name to move and push |
+| `tag` | ✅ | last-deploy | Tag name to move and push |
 | `remote` | ❌ | `origin` | Remote name to push to |
 | Name | Required | Default | Description |
 |------|-----------|----------|-------------|
-| `tag` | ✅ | — | Tag name to move and push |
+| `tag` | ✅ | last-deploy | Tag name to move and push |
 | `remote` | ❌ | `origin` | Remote name to push to |
 
 ---
