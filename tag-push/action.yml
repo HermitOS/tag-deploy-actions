@@ -55,6 +55,10 @@ runs:
             exit 1
           fi
           echo "✓ Tag names match"
+        else
+          echo ""
+          echo "ℹ️  Safety check skipped (no expected_base_tag provided)"
+          echo "   This is normal for manual invocations"
         fi
         
         # CRITICAL: Force fetch all tags first to see current state
