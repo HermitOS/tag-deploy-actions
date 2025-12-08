@@ -166,6 +166,7 @@ on:
         required: false
         type: string
         default: ''
+  workflow_dispatch:  # Allow manual trigger
 
 jobs:
   deploy:
