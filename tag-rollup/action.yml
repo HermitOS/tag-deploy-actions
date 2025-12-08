@@ -48,27 +48,37 @@ runs:
         echo "Current SHA: $current_sha"
         echo "Looking for tag: $tag"
         
-        # Force fetch ALL tags with explicit refspec
-        echo "Fetching tags from origin..."
-        git fetch origin '+refs/tags/*:refs/tags/*' --force 2>&1 | head -5 || true
+        # CRITICAL: Force fetch ALL tags with explicit refspec
+        # This ensures we get moved/force-pushed tags
+        echo "Force fetching all tags from origin..."
+        git fetch origin '+refs/tags/*:refs/tags/*' --force --prune --no-recurse-submodules
         
-        # List all tags for debugging
-        echo "All available tags:"
-        git tag -l | sort -V || echo "No tags found"
+        # Show what tags we actually have now
+        echo "Available tags after fetch:"
+        git tag -l | sort -V | tail -10 || echo "No tags found"
+        
+        # Check if our specific tag exists
         echo ""
+        echo "Checking for tag: $tag"
+        if git show-ref --verify --quiet "refs/tags/$tag"; then
+          echo "✓ Tag reference exists in refs/tags/"
+        else
+          echo "✗ Tag reference NOT found in refs/tags/"
+        fi
 
         base=""
         ahead=0
 
-        if git rev-parse -q --verify "refs/tags/$tag" >/dev/null; then
+        if git rev-parse -q --verify "refs/tags/$tag" >/dev/null 2>&1; then
           tag_sha=$(git rev-parse "refs/tags/$tag")
-          echo "✓ Found tag '$tag' at SHA: $tag_sha"
+          tag_short=$(git rev-parse --short "refs/tags/$tag")
+          echo "✓ Found tag '$tag' at SHA: $tag_sha ($tag_short)"
           
           # Check if tag is an ancestor of HEAD
           if git merge-base --is-ancestor "refs/tags/$tag" HEAD 2>/dev/null; then
             ahead=$(git rev-list --count "refs/tags/$tag"..HEAD)
             base="$tag"
-            reason="$ahead commit(s) since '$tag'."
+            reason="$ahead commit(s) since '$tag' ($tag_short)."
             echo "✓ Tag is ancestor of HEAD, $ahead commits ahead"
           else
             echo "⚠ Tag '$tag' exists at $tag_sha but is NOT an ancestor of HEAD ($current_sha)"
@@ -81,10 +91,10 @@ runs:
             fi
           fi
         else
-          echo "✗ Tag '$tag' not found"
+          echo "✗ Tag '$tag' not found after force fetch"
           if [ "$initial" = "true" ]; then
             ahead="$(git rev-list --count HEAD)"
-            reason="No tag '$tag' found; treating as initial run."
+            reason="No tag '$tag' found; treating as initial run ($ahead commits)."
           else
             ahead="0"
             reason="No tag '$tag' found; initial_as_changes=false, so no run."

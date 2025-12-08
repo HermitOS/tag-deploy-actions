@@ -30,14 +30,14 @@ runs:
         
         echo "🏷️ Moving '$tag' to HEAD and pushing to '$remote'…"
         echo "Current branch: $current_branch"
-        echo "Current HEAD: $current_sha"
+        echo "Current HEAD: $current_sha ($current_short)"
         
-        # Fetch tags to see current state
-        echo "Fetching current tags..."
-        git fetch "$remote" '+refs/tags/*:refs/tags/*' --force 2>&1 | head -5 || true
+        # CRITICAL: Force fetch all tags first to see current state
+        echo "Force fetching all tags from $remote..."
+        git fetch "$remote" '+refs/tags/*:refs/tags/*' --force --prune --no-recurse-submodules
         
         # Show old tag location if it exists
-        if git rev-parse -q --verify "refs/tags/$tag" >/dev/null; then
+        if git rev-parse -q --verify "refs/tags/$tag" >/dev/null 2>&1; then
           old_sha=$(git rev-parse "refs/tags/$tag")
           old_short=$(git rev-parse --short "refs/tags/$tag")
           echo "Old tag location: $old_sha ($old_short)"
@@ -46,6 +46,7 @@ runs:
         fi
         
         # Force move/create tag to current HEAD
+        echo "Creating/moving tag locally..."
         git tag -f "$tag"
         new_local_sha=$(git rev-parse "refs/tags/$tag")
         echo "✓ Tag moved locally to $new_local_sha"
@@ -57,18 +58,18 @@ runs:
         fi
         
         # Force push to remote with explicit refspec
-        echo "Pushing tag to remote..."
+        echo "Force pushing tag to $remote..."
         git push -f "$remote" "refs/tags/$tag:refs/tags/$tag"
         echo "✓ Tag pushed to $remote"
         
-        # Verify on remote
+        # Verify on remote using ls-remote (doesn't use cache)
         echo "Verifying tag on remote..."
-        git fetch "$remote" '+refs/tags/*:refs/tags/*' --force 2>&1 | head -5 || true
-        remote_sha=$(git ls-remote "$remote" "refs/tags/$tag" | cut -f1)
-        echo "Remote tag SHA: $remote_sha"
+        remote_sha=$(git ls-remote "$remote" "refs/tags/$tag" | awk '{print $1}')
         
-        if [ "$remote_sha" = "$current_sha" ]; then
-          echo "✓ Verified: Remote tag matches HEAD"
+        if [ -z "$remote_sha" ]; then
+          echo "⚠ WARNING: Could not verify tag on remote"
+        elif [ "$remote_sha" = "$current_sha" ]; then
+          echo "✓ Verified: Remote tag matches HEAD ($remote_sha)"
         else
           echo "⚠ WARNING: Remote tag ($remote_sha) doesn't match HEAD ($current_sha)"
         fi

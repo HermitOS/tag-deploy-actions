@@ -43,7 +43,9 @@ Moves a tag to `HEAD` and pushes it back to your remote — great for marking a 
 
 ## ✨ Example Usage
 
-Here’s how you can build a simple nightly workflow that checks for new commits, runs a deployment if needed, and updates your tag.
+Here's how you can build a simple nightly workflow that checks for new commits, runs a deployment if needed, and updates your tag.
+
+> **Important**: Always use `fetch-depth: 0` to get full history, and the actions will handle fetching tags properly.
 
 ### Option A - In one workflow action with two jobs
 
@@ -72,7 +74,7 @@ jobs:
       - uses: actions/checkout@v4
         with: { fetch-depth: 0 }
       - id: rollup
-        uses: hermitos/actions/tag-rollup@v1
+        uses: hermitos/tag-deploy-actions/tag-rollup@v2g-rollup@v2
 
   deploy:
     needs: check
@@ -91,7 +93,7 @@ jobs:
 
       - name: Update last-deploy tag
         if: success()
-        uses: hermitos/actions/tag-push@v1
+        uses: hermitos/tag-deploy-actions/tag-push@v2
         with:
           tag: last-deploy
 ```
@@ -125,7 +127,7 @@ jobs:
       - uses: actions/checkout@v4
         with: { fetch-depth: 0 }
       - id: rollup
-        uses: hermitos/deploy-actions/tag-rollup@v1
+        uses: hermitos/tag-deploy-actions/tag-rollup@v2
 
   call-deploy:
     needs: check
@@ -150,6 +152,24 @@ jobs:
         run: |
           # your full deploy here, can be multiple steps to
       - name: Update last-deploy tag
-        uses: hermitos/deploy-actions/tag-push@v1
+        uses: hermitos/tag-deploy-actions/tag-push@v2
 
 ```
+
+---
+
+## 📌 Important Notes
+
+### Fetching Updated Tags Locally
+
+**Git pull does NOT automatically update force-pushed tags!** After a deployment updates your tag, fetch it locally with:
+
+```bash
+git fetch --tags --force
+# or more explicitly:
+git fetch origin '+refs/tags/*:refs/tags/*' --force
+```
+
+### Why Force Fetch?
+
+When a tag is moved to a new commit (force-pushed), Git won't update it with a regular fetch because that would overwrite local data. The `--force` flag tells Git "yes, update my local tags to match the remote, even if they've moved."
