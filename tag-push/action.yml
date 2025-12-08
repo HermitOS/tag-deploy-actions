@@ -13,6 +13,10 @@ inputs:
   remote:
     description: Git remote name
     default: origin
+  expected_base_tag:
+    description: Expected base tag from rollup check (optional safety check)
+    required: false
+    default: ""
 
 runs:
   using: composite
@@ -22,6 +26,7 @@ runs:
         set -euo pipefail
         tag="${{ inputs.tag }}"
         remote="${{ inputs.remote }}"
+        expected="${{ inputs.expected_base_tag }}"
         
         # Get current context for debugging
         current_branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "HEAD")
@@ -31,6 +36,26 @@ runs:
         echo "🏷️ Moving '$tag' to HEAD and pushing to '$remote'…"
         echo "Current branch: $current_branch"
         echo "Current HEAD: $current_sha ($current_short)"
+        
+        # Safety check: verify tag matches expected from rollup
+        if [ -n "$expected" ]; then
+          echo ""
+          echo "🔒 Safety check: Expected base tag from rollup = '$expected'"
+          if [ "$expected" != "$tag" ]; then
+            echo ""
+            echo "❌ ERROR: Tag mismatch detected!"
+            echo "   Rollup checked tag: '$expected'"
+            echo "   Trying to push tag: '$tag'"
+            echo ""
+            echo "This usually means:"
+            echo "  - You passed different tag names to rollup vs push"
+            echo "  - There's a typo in one of the tag names"
+            echo ""
+            echo "Please ensure both actions use the same tag parameter."
+            exit 1
+          fi
+          echo "✓ Tag names match"
+        fi
         
         # CRITICAL: Force fetch all tags first to see current state
         echo "Force fetching all tags from $remote..."
@@ -85,4 +110,5 @@ runs:
           fi
         } >> "$GITHUB_STEP_SUMMARY"
         
+        echo ""
         echo "✓ Complete: $tag → $current_short"
