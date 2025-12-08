@@ -61,9 +61,10 @@ runs:
           echo "   This is normal for manual invocations"
         fi
         
-        # CRITICAL: Force fetch all tags first to see current state
-        echo "Force fetching all tags from $remote..."
-        git fetch "$remote" '+refs/tags/*:refs/tags/*' --force --prune --no-recurse-submodules
+        # Fetch only the specific tag we care about (efficient)
+        echo ""
+        echo "Fetching tag '$tag' from $remote..."
+        git fetch "$remote" "+refs/tags/$tag:refs/tags/$tag" --force --no-recurse-submodules 2>/dev/null || echo "Tag doesn't exist yet on remote"
         
         # Show old tag location if it exists
         if git rev-parse -q --verify "refs/tags/$tag" >/dev/null 2>&1; then
@@ -75,6 +76,7 @@ runs:
         fi
         
         # Force move/create tag to current HEAD
+        echo ""
         echo "Creating/moving tag locally..."
         git tag -f "$tag"
         new_local_sha=$(git rev-parse "refs/tags/$tag")
@@ -87,11 +89,13 @@ runs:
         fi
         
         # Force push to remote with explicit refspec
+        echo ""
         echo "Force pushing tag to $remote..."
         git push -f "$remote" "refs/tags/$tag:refs/tags/$tag"
         echo "✓ Tag pushed to $remote"
         
         # Verify on remote using ls-remote (doesn't use cache)
+        echo ""
         echo "Verifying tag on remote..."
         remote_sha=$(git ls-remote "$remote" "refs/tags/$tag" | awk '{print $1}')
         

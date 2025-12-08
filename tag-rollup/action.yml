@@ -38,51 +38,21 @@ runs:
         tag="${{ inputs.tag }}"
         initial="${{ inputs.initial_as_changes }}"
 
-        echo "📦 Fetching tags and checking branch context…"
+        echo "📦 Checking for commits since tag '$tag'..."
+        echo ""
         
-        # Get current branch/ref info
+        # Get current context
         current_branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "HEAD")
         current_sha=$(git rev-parse HEAD)
         
-        echo "Current branch: $current_branch"
-        echo "Current SHA: $current_sha"
-        echo "Looking for tag: $tag"
-        
-        # Show git config for debugging
+        echo "Branch: $current_branch @ ${current_sha:0:7}"
+        echo "Looking for tag: '$tag'"
         echo ""
-        echo "Git remote configuration:"
-        git remote -v || echo "No remotes configured"
         
-        # CRITICAL: Multiple fetch attempts to ensure tags are retrieved
+        # Force fetch all tags (needed to find any deployment tag)
+        echo "Fetching tags from origin..."
+        git fetch origin '+refs/tags/*:refs/tags/*' --force --prune --no-recurse-submodules 2>&1 | head -3
         echo ""
-        echo "Fetching tags (attempt 1: explicit refspec)..."
-        git fetch origin '+refs/tags/*:refs/tags/*' --force --prune --no-recurse-submodules 2>&1 || echo "Fetch attempt 1 had issues"
-        
-        echo ""
-        echo "Fetching tags (attempt 2: with --tags flag)..."
-        git fetch origin --tags --force 2>&1 || echo "Fetch attempt 2 had issues"
-        
-        # Show what we have
-        echo ""
-        echo "Tags in .git/refs/tags/:"
-        ls -la .git/refs/tags/ 2>/dev/null || echo "No .git/refs/tags/ directory"
-        
-        echo ""
-        echo "All refs containing 'tag':"
-        git show-ref | grep tag || echo "No tag refs found"
-        
-        echo ""
-        echo "Available tags after fetch:"
-        git tag -l | sort -V | tail -10 || echo "No tags found via git tag -l"
-        
-        # Check if our specific tag exists
-        echo ""
-        echo "Checking for tag: $tag"
-        if git show-ref --verify --quiet "refs/tags/$tag" 2>/dev/null; then
-          echo "✓ Tag reference exists in refs/tags/"
-        else
-          echo "✗ Tag reference NOT found in refs/tags/"
-        fi
 
         base=""
         ahead=0
@@ -90,7 +60,7 @@ runs:
         if git rev-parse -q --verify "refs/tags/$tag" >/dev/null 2>&1; then
           tag_sha=$(git rev-parse "refs/tags/$tag")
           tag_short=$(git rev-parse --short "refs/tags/$tag")
-          echo "✓ Found tag '$tag' at SHA: $tag_sha ($tag_short)"
+          echo "✓ Found tag '$tag' at $tag_short"
           
           # Check if tag is an ancestor of HEAD
           if git merge-base --is-ancestor "refs/tags/$tag" HEAD 2>/dev/null; then
@@ -99,39 +69,43 @@ runs:
             reason="$ahead commit(s) since '$tag' ($tag_short)."
             echo "✓ Tag is ancestor of HEAD, $ahead commits ahead"
           else
-            echo "⚠ Tag '$tag' exists at $tag_sha but is NOT an ancestor of HEAD ($current_sha)"
+            echo "⚠️ WARNING: Tag '$tag' exists but is NOT an ancestor of HEAD"
+            echo "   This usually means the tag was created on a different branch"
+            
             if [ "$initial" = "true" ]; then
               ahead=$(git rev-list --count HEAD)
-              reason="Tag '$tag' found but not in current branch history. Treating as initial run ($ahead commits)."
+              reason="⚠️ Tag '$tag' found but NOT in current branch history. Treating as initial run ($ahead commits)."
             else
               ahead=0
-              reason="Tag '$tag' found but not in current branch history. initial_as_changes=false, so no run."
+              reason="⚠️ Tag '$tag' found but NOT in current branch history. initial_as_changes=false, so no run."
             fi
           fi
         else
-          echo "❌ ERROR: Tag '$tag' NOT found!"
-          echo ""
+          echo "✗ Tag '$tag' NOT found"
           
-          # Try to find similar tags (fuzzy matching)
-          echo "🔍 Looking for similar tags..."
-          similar_tags=$(echo "$all_tags" | grep -i "deploy" || echo "")
+          # Only do expensive similarity search if tag not found
+          echo ""
+          echo "🔍 Searching for similar tags..."
+          all_tags=$(git tag -l | sort -V)
+          similar_tags=$(echo "$all_tags" | grep -i "deploy" | head -10 || echo "")
           
           if [ -n "$similar_tags" ]; then
-            echo "   Did you mean one of these?"
+            echo "   Found similar tags:"
             echo "$similar_tags" | while read -r t; do
               echo "     - $t"
             done
-            echo ""
             
             # Check for common typos
-            if echo "$all_tags" | grep -q "^last-deploy"; then
+            if echo "$similar_tags" | grep -q "^last-deploy"; then
               if [ "$tag" = "latest-deploy" ] || [[ "$tag" == latest-deploy* ]]; then
-                echo "   ⚠️  TYPO DETECTED: You searched for '$tag' but 'last-deploy*' tags exist!"
-                echo "   Did you accidentally type 'latest' instead of 'last'?"
+                echo ""
+                echo "   ⚠️  TYPO DETECTED: You searched for '$tag'"
+                echo "       but 'last-deploy*' tags exist!"
+                echo "       Did you mean 'last' instead of 'latest'?"
               fi
             fi
           else
-            echo "   No tags containing 'deploy' found."
+            echo "   No tags containing 'deploy' found"
           fi
           echo ""
           
@@ -140,7 +114,7 @@ runs:
             reason="❌ No tag '$tag' found; treating as initial run ($ahead commits)."
           else
             ahead="0"
-            reason="No tag '$tag' found; initial_as_changes=false, so no run."
+            reason="❌ No tag '$tag' found; initial_as_changes=false, so no run."
           fi
         fi
 
@@ -165,8 +139,8 @@ runs:
           echo "- **Found tag**: \`${base:-〈none〉}\`"
           if [ -z "$base" ] && [ -n "${similar_tags:-}" ]; then
             echo ""
-            echo "#### ⚠️ Tag Not Found - Did you mean?"
-            echo "$similar_tags" | while read -r t; do
+            echo "#### 🔍 Similar tags found:"
+            echo "$similar_tags" | head -5 | while read -r t; do
               echo "- \`$t\`"
             done
           fi
@@ -176,6 +150,5 @@ runs:
           echo "$reason"
         } >> "$GITHUB_STEP_SUMMARY"
 
-        echo "════════════════════════════════════════"
+        echo ""
         echo "Result: has_changes=$has_changes, base_tag=${base:-none}, ahead=$ahead"
-        echo "════════════════════════════════════════"
