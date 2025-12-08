@@ -49,10 +49,10 @@ Here's how you can build a simple nightly workflow that checks for new commits, 
 
 > **Important**: Always use `fetch-depth: 0` to get full history, and the actions will handle fetching tags properly.
 
-> **Real Examples**: See working implementations in the [hermitos/TagTest](https://github.com/hermitos/TagTest) repository:
+> **Real Examples**: See working implementations in the [HermitOS/TestTag](https://github.com/HermitOS/TestTag) repository:
 >
-> - [Prod.Nightly.Deploy.yml](https://github.com/hermitos/TagTest/blob/main/.github/workflows/Prod.Nightly.Deploy.yml) - Nightly deployment with rollup check
-> - [Prod.Publish.yml](https://github.com/hermitos/TagTest/blob/main/.github/workflows/Prod.Publish.yml) - Manual deployment workflow
+> - [Prod.Nightly.Deploy.yml](https://github.com/HermitOS/TestTag/blob/dev/.github/workflows/Prod.Nightly.Deploy.yml) - Nightly deployment with rollup check
+> - [Prod.Publish.yml](https://github.com/HermitOS/TestTag/blob/dev/.github/workflows/Prod.Publish.yml) - Manual deployment workflow
 
 ### Option A - In one workflow action with two jobs
 
@@ -91,7 +91,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with: { fetch-depth: 0 }
+        with:
+          ref: main
+          fetch-depth: 0
 
       - name: Build & Deploy
         run: |
@@ -136,7 +138,9 @@ jobs:
       base_tag: ${{ steps.rollup.outputs.base_tag }}
     steps:
       - uses: actions/checkout@v4
-        with: { fetch-depth: 0 }
+        with:
+          ref: main
+          fetch-depth: 0
       - id: rollup
         uses: hermitos/tag-deploy-actions/tag-rollup@v2
         with:
@@ -168,7 +172,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with: { fetch-depth: 0 }
+        with:
+          ref: main
+          fetch-depth: 0
       - name: Build & Deploy
         run: |
           echo "Deploying..."
@@ -224,7 +230,7 @@ When a tag is moved to a new commit (force-pushed), Git won't update it with a r
 
 **Check for typos!** The action will suggest similar tags if it can't find an exact match:
 
-```
+```text
 ❌ ERROR: Tag 'latest-deploy-prod' NOT found!
 
 🔍 Looking for similar tags...
@@ -239,7 +245,7 @@ When a tag is moved to a new commit (force-pushed), Git won't update it with a r
 
 ### Tag mismatch error during push
 
-```
+```text
 ❌ ERROR: Tag mismatch detected!
    Rollup checked tag: 'last-deploy-prod'
    Trying to push tag: 'latest-deploy-prod'
@@ -260,10 +266,10 @@ permissions:
 
 ## 📚 Real-World Examples
 
-See these actions in use in the [hermitos/TagTest](https://github.com/hermitos/TagTest) repository:
+See these actions in use in the [HermitOS/TestTag](https://github.com/HermitOS/TestTag) repository:
 
-- **[Prod.Nightly.Deploy.yml](https://github.com/hermitos/TagTest/blob/main/.github/workflows/Prod.Nightly.Deploy.yml)** - Complete nightly deployment workflow with rollup check
-- **[Prod.Publish.yml](https://github.com/hermitos/TagTest/blob/main/.github/workflows/Prod.Publish.yml)** - Manual deployment trigger workflow
+- **[Prod.Nightly.Deploy.yml](https://github.com/HermitOS/TestTag/blob/dev/.github/workflows/Prod.Nightly.Deploy.yml)** - Complete nightly deployment workflow with rollup check
+- **[Prod.Publish.yml](https://github.com/HermitOS/TestTag/blob/dev/.github/workflows/Prod.Publish.yml)** - Manual deployment trigger workflow
 
 ---
 
