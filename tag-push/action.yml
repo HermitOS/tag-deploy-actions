@@ -22,13 +22,42 @@ runs:
         set -euo pipefail
         tag="${{ inputs.tag }}"
         remote="${{ inputs.remote }}"
+        
+        # Get current context for debugging
+        current_branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "HEAD")
+        current_sha=$(git rev-parse HEAD)
+        current_short=$(git rev-parse --short HEAD)
+        
         echo "🏷️ Moving '$tag' to HEAD and pushing to '$remote'…"
-        git fetch --tags --force >/dev/null 2>&1 || true
+        echo "Current branch: $current_branch"
+        echo "Current HEAD: $current_sha"
+        
+        # Fetch tags to see current state
+        git fetch "$remote" --tags --force >/dev/null 2>&1 || true
+        
+        # Show old tag location if it exists
+        if git rev-parse -q --verify "refs/tags/$tag" >/dev/null; then
+          old_sha=$(git rev-parse "refs/tags/$tag")
+          old_short=$(git rev-parse --short "refs/tags/$tag")
+          echo "Old tag location: $old_sha ($old_short)"
+        else
+          echo "Tag does not exist yet (will create new)"
+        fi
+        
+        # Force move/create tag to current HEAD
         git tag -f "$tag"
+        echo "✓ Tag moved locally to $current_sha"
+        
+        # Force push to remote
         git push -f "$remote" "refs/tags/$tag"
+        echo "✓ Tag pushed to $remote"
+        
         {
           echo "### Tag push"
-          echo "- Tag moved: \`$tag\`"
-          echo "- Remote: \`$remote\`"
-          echo "- Ref: \`$(git rev-parse --short HEAD)\`"
+          echo "- **Tag moved**: \`$tag\`"
+          echo "- **Remote**: \`$remote\`"
+          echo "- **Branch**: \`$current_branch\`"
+          echo "- **New location**: \`$current_short\` (\`$current_sha\`)"  
         } >> "$GITHUB_STEP_SUMMARY"
+        
+        echo "✓ Complete: $tag → $current_short"

@@ -24,6 +24,9 @@ outputs:
   ahead:
     description: Number of commits ahead of tag
     value: ${{ steps.check.outputs.ahead }}
+  current_branch:
+    description: The current branch or ref
+    value: ${{ steps.check.outputs.current_branch }}
 
 runs:
   using: composite
@@ -38,17 +41,42 @@ runs:
         tag="${{ inputs.tag }}"
         initial="${{ inputs.initial_as_changes }}"
 
-        echo "📦 Fetching tags…"
+        echo "📦 Fetching tags and checking branch context…"
         git fetch --tags --force >/dev/null 2>&1 || true
+
+        # Get current branch/ref info for debugging
+        current_branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "HEAD")
+        current_sha=$(git rev-parse HEAD)
+        
+        echo "Current branch: $current_branch"
+        echo "Current SHA: $current_sha"
+        echo "Looking for tag: $tag"
 
         base=""
         ahead=0
 
         if git rev-parse -q --verify "refs/tags/$tag" >/dev/null; then
-          ahead=$(git rev-list --count "$tag"..HEAD)
-          base="$tag"
-          reason="$ahead commit(s) since '$tag'."
+          tag_sha=$(git rev-parse "refs/tags/$tag")
+          echo "✓ Found tag '$tag' at SHA: $tag_sha"
+          
+          # Check if tag is an ancestor of HEAD
+          if git merge-base --is-ancestor "refs/tags/$tag" HEAD 2>/dev/null; then
+            ahead=$(git rev-list --count "refs/tags/$tag"..HEAD)
+            base="$tag"
+            reason="$ahead commit(s) since '$tag'."
+            echo "✓ Tag is ancestor of HEAD, $ahead commits ahead"
+          else
+            echo "⚠ Tag '$tag' exists at $tag_sha but is NOT an ancestor of HEAD ($current_sha)"
+            if [ "$initial" = "true" ]; then
+              ahead=$(git rev-list --count HEAD)
+              reason="Tag '$tag' found but not in current branch history. Treating as initial run ($ahead commits)."
+            else
+              ahead=0
+              reason="Tag '$tag' found but not in current branch history. initial_as_changes=false, so no run."
+            fi
+          fi
         else
+          echo "✗ Tag '$tag' not found"
           if [ "$initial" = "true" ]; then
             ahead="$(git rev-list --count HEAD)"
             reason="No tag '$tag' found; treating as initial run."
@@ -68,18 +96,20 @@ runs:
           echo "has_changes=$has_changes"
           echo "base_tag=$base"
           echo "ahead=$ahead"
+          echo "current_branch=$current_branch"
         } >> "$GITHUB_OUTPUT"
         
         # Summary
         {
           echo "### Tag rollup check"
-          echo "- Tag: \`$tag\`"
-          echo "- Found tag: \`${base:-〈none〉}\`"
-          echo "- Commits ahead: \`$ahead\`"
-          echo "- Decision: \`${has_changes}\`"
+          echo "- **Branch**: \`$current_branch\` @ \`${current_sha:0:7}\`"
+          echo "- **Tag**: \`$tag\`"
+          echo "- **Found tag**: \`${base:-〈none〉}\`"
+          echo "- **Commits ahead**: \`$ahead\`"
+          echo "- **Decision**: \`${has_changes}\`"
           echo ""
           echo "$reason"
         } >> "$GITHUB_STEP_SUMMARY"
 
         # Also echo to logs for quick visibility
-        echo "has_changes=$has_changes, base_tag=${base:-none}, ahead=$ahead — $reason"
+        echo "Branch=$current_branch @ ${current_sha:0:7}, has_changes=$has_changes, base_tag=${base:-none}, ahead=$ahead — $reason"
