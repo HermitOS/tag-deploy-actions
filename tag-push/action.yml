@@ -33,7 +33,8 @@ runs:
         echo "Current HEAD: $current_sha"
         
         # Fetch tags to see current state
-        git fetch "$remote" --tags --force >/dev/null 2>&1 || true
+        echo "Fetching current tags..."
+        git fetch "$remote" '+refs/tags/*:refs/tags/*' --force 2>&1 | head -5 || true
         
         # Show old tag location if it exists
         if git rev-parse -q --verify "refs/tags/$tag" >/dev/null; then
@@ -46,18 +47,41 @@ runs:
         
         # Force move/create tag to current HEAD
         git tag -f "$tag"
-        echo "✓ Tag moved locally to $current_sha"
+        new_local_sha=$(git rev-parse "refs/tags/$tag")
+        echo "✓ Tag moved locally to $new_local_sha"
         
-        # Force push to remote
-        git push -f "$remote" "refs/tags/$tag"
+        # Verify local tag before pushing
+        if [ "$new_local_sha" != "$current_sha" ]; then
+          echo "✗ ERROR: Local tag is at $new_local_sha but HEAD is at $current_sha"
+          exit 1
+        fi
+        
+        # Force push to remote with explicit refspec
+        echo "Pushing tag to remote..."
+        git push -f "$remote" "refs/tags/$tag:refs/tags/$tag"
         echo "✓ Tag pushed to $remote"
+        
+        # Verify on remote
+        echo "Verifying tag on remote..."
+        git fetch "$remote" '+refs/tags/*:refs/tags/*' --force 2>&1 | head -5 || true
+        remote_sha=$(git ls-remote "$remote" "refs/tags/$tag" | cut -f1)
+        echo "Remote tag SHA: $remote_sha"
+        
+        if [ "$remote_sha" = "$current_sha" ]; then
+          echo "✓ Verified: Remote tag matches HEAD"
+        else
+          echo "⚠ WARNING: Remote tag ($remote_sha) doesn't match HEAD ($current_sha)"
+        fi
         
         {
           echo "### Tag push"
           echo "- **Tag moved**: \`$tag\`"
           echo "- **Remote**: \`$remote\`"
           echo "- **Branch**: \`$current_branch\`"
-          echo "- **New location**: \`$current_short\` (\`$current_sha\`)"  
+          echo "- **New location**: \`$current_short\` (\`$current_sha\`)"
+          if [ -n "${old_short:-}" ]; then
+            echo "- **Previous location**: \`$old_short\` (\`$old_sha\`)"
+          fi
         } >> "$GITHUB_STEP_SUMMARY"
         
         echo "✓ Complete: $tag → $current_short"

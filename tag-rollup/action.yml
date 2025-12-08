@@ -31,9 +31,6 @@ outputs:
 runs:
   using: composite
   steps:
-    - shell: bash
-      run: git fetch --tags --force
-
     - id: check
       shell: bash
       run: |
@@ -42,15 +39,23 @@ runs:
         initial="${{ inputs.initial_as_changes }}"
 
         echo "📦 Fetching tags and checking branch context…"
-        git fetch --tags --force >/dev/null 2>&1 || true
-
-        # Get current branch/ref info for debugging
+        
+        # Get current branch/ref info
         current_branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "HEAD")
         current_sha=$(git rev-parse HEAD)
         
         echo "Current branch: $current_branch"
         echo "Current SHA: $current_sha"
         echo "Looking for tag: $tag"
+        
+        # Force fetch ALL tags with explicit refspec
+        echo "Fetching tags from origin..."
+        git fetch origin '+refs/tags/*:refs/tags/*' --force 2>&1 | head -5 || true
+        
+        # List all tags for debugging
+        echo "All available tags:"
+        git tag -l | sort -V || echo "No tags found"
+        echo ""
 
         base=""
         ahead=0
